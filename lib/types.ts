@@ -1,12 +1,21 @@
+export interface Subject {
+  name: string;
+  source?: string;
+}
+
 export interface Author {
   id: string;
   name: string;
+  firstName?: string;
+  lastName?: string;
   birthYear?: number;
   deathYear?: number;
   birthPlace?: string;
+  deathPlace?: string;
   nationality?: string;
-  biography?: string;
+  bio?: string;
   wikidataId?: string;
+  viafId?: string;
   wikipediaUrl?: string;
 }
 
@@ -14,7 +23,14 @@ export interface Book {
   id: string;
   title: string;
   publicationYear?: number;
+  dateRead?: string;
   isbn13?: string;
+  isbn10?: string;
+  openlibraryId?: string;
+  wikidataId?: string;
+  description?: string;
+  coverUrl?: string;
+  subjects?: Subject[];
 }
 
 export interface GraphNode {

@@ -2,9 +2,11 @@
 
 import { useState } from "react";
 import { ApolloClient, InMemoryCache, HttpLink } from "@apollo/client";
-import { GET_AUTHOR_GRAPH, SEARCH_AUTHORS } from "@/lib/graphql-queries";
-import { AuthorGraph as AuthorGraphType, Author } from "@/lib/types";
+import { GET_AUTHOR_GRAPH, SEARCH_AUTHORS, GET_AUTHOR, GET_BOOK, SEARCH_BOOKS_BY_SUBJECT } from "@/lib/graphql-queries";
+import { AuthorGraph as AuthorGraphType, Author, Book } from "@/lib/types";
 import AuthorGraph from "@/components/AuthorGraph";
+import DetailPanel from "@/components/DetailPanel";
+import SubjectBooksModal from "@/components/SubjectBooksModal";
 
 // Create a client instance for manual queries
 const createClient = () => {
@@ -25,6 +27,14 @@ export default function Home() {
   const [searchLoading, setSearchLoading] = useState(false);
   const [graphLoading, setGraphLoading] = useState(false);
   const [graphError, setGraphError] = useState<string | null>(null);
+  const [detailPanel, setDetailPanel] = useState<{
+    type: "author" | "book";
+    data: Author | Book | null;
+  } | null>(null);
+  const [subjectModal, setSubjectModal] = useState<{
+    subject: string;
+    books: Book[];
+  } | null>(null);
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -215,8 +225,31 @@ export default function Home() {
             </div>
             <AuthorGraph
               data={graphData}
-              onNodeClick={(nodeId, nodeType) => {
-                console.log(`Clicked ${nodeType} node:`, nodeId);
+              onNodeClick={async (nodeId, nodeType) => {
+                const client = createClient();
+                try {
+                  if (nodeType === "author") {
+                    const { data } = await client.query({
+                      query: GET_AUTHOR,
+                      variables: { id: nodeId },
+                    });
+                    setDetailPanel({
+                      type: "author",
+                      data: (data as any).author,
+                    });
+                  } else if (nodeType === "book") {
+                    const { data } = await client.query({
+                      query: GET_BOOK,
+                      variables: { id: nodeId },
+                    });
+                    setDetailPanel({
+                      type: "book",
+                      data: (data as any).book,
+                    });
+                  }
+                } catch (error) {
+                  console.error("Error fetching node details:", error);
+                }
               }}
             />
           </div>
@@ -233,6 +266,54 @@ export default function Home() {
               <li>Adjust the graph depth to explore deeper connections</li>
             </ol>
           </div>
+        )}
+
+        {/* Detail Panel */}
+        {detailPanel && (
+          <DetailPanel
+            type={detailPanel.type}
+            data={detailPanel.data}
+            onClose={() => setDetailPanel(null)}
+            onSubjectClick={async (subject) => {
+              const client = createClient();
+              try {
+                const { data } = await client.query({
+                  query: SEARCH_BOOKS_BY_SUBJECT,
+                  variables: { subject },
+                });
+                setSubjectModal({
+                  subject,
+                  books: (data as any).searchBooksBySubject || [],
+                });
+              } catch (error) {
+                console.error("Error searching books by subject:", error);
+              }
+            }}
+          />
+        )}
+
+        {/* Subject Books Modal */}
+        {subjectModal && (
+          <SubjectBooksModal
+            subject={subjectModal.subject}
+            books={subjectModal.books}
+            onClose={() => setSubjectModal(null)}
+            onBookClick={async (bookId) => {
+              const client = createClient();
+              try {
+                const { data } = await client.query({
+                  query: GET_BOOK,
+                  variables: { id: bookId },
+                });
+                setDetailPanel({
+                  type: "book",
+                  data: (data as any).book,
+                });
+              } catch (error) {
+                console.error("Error fetching book details:", error);
+              }
+            }}
+          />
         )}
       </div>
     </div>

@@ -19,13 +19,17 @@ export const GET_AUTHOR = gql`
     author(id: $id) {
       id
       name
+      firstName
+      lastName
       birthYear
       deathYear
       birthPlace
+      deathPlace
       nationality
       bio
       wikidataId
       viafId
+      wikipediaUrl
     }
   }
 `;
@@ -58,7 +62,30 @@ export const GET_BOOK = gql`
       id
       title
       publicationYear
+      dateRead
       isbn13
+      isbn10
+      openlibraryId
+      wikidataId
+      description
+      coverUrl
+      subjects {
+        name
+        source
+      }
+    }
+  }
+`;
+
+export const SEARCH_BOOKS_BY_SUBJECT = gql`
+  query SearchBooksBySubject($subject: String!) {
+    searchBooksBySubject(subject: $subject) {
+      id
+      title
+      publicationYear
+      subjects {
+        name
+      }
     }
   }
 `;
