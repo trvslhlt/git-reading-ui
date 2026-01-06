@@ -13,7 +13,38 @@ import {
   MarkerType,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
+import dagre from "dagre";
 import { AuthorGraph as AuthorGraphType } from "@/lib/types";
+
+// Layout configuration
+const getLayoutedElements = (nodes: Node[], edges: Edge[]) => {
+  const dagreGraph = new dagre.graphlib.Graph();
+  dagreGraph.setDefaultEdgeLabel(() => ({}));
+  dagreGraph.setGraph({ rankdir: "TB", ranksep: 80, nodesep: 60 });
+
+  nodes.forEach((node) => {
+    dagreGraph.setNode(node.id, { width: 180, height: 80 });
+  });
+
+  edges.forEach((edge) => {
+    dagreGraph.setEdge(edge.source, edge.target);
+  });
+
+  dagre.layout(dagreGraph);
+
+  const layoutedNodes = nodes.map((node) => {
+    const nodeWithPosition = dagreGraph.node(node.id);
+    return {
+      ...node,
+      position: {
+        x: nodeWithPosition.x - 90,
+        y: nodeWithPosition.y - 40,
+      },
+    };
+  });
+
+  return { nodes: layoutedNodes, edges };
+};
 
 interface AuthorGraphProps {
   data: AuthorGraphType;
@@ -81,48 +112,13 @@ export default function AuthorGraph({ data, onNodeClick }: AuthorGraphProps) {
     [data.edges]
   );
 
-  const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
-  const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
+  // Apply dagre layout
+  const { nodes: layoutedNodes, edges: layoutedEdges } = useMemo(() => {
+    return getLayoutedElements(initialNodes, initialEdges);
+  }, [initialNodes, initialEdges]);
 
-  // Auto-layout nodes using a simple force-directed layout
-  useMemo(() => {
-    if (nodes.length === 0) return;
-
-    const authorNodes = nodes.filter((n) =>
-      data.nodes.find((dn) => dn.id === n.id)?.type === "AUTHOR"
-    );
-    const bookNodes = nodes.filter((n) =>
-      data.nodes.find((dn) => dn.id === n.id)?.type === "BOOK"
-    );
-
-    // Simple circular layout for authors
-    const radius = 250;
-    authorNodes.forEach((node, idx) => {
-      const angle = (2 * Math.PI * idx) / Math.max(authorNodes.length, 1);
-      node.position = {
-        x: 400 + radius * Math.cos(angle),
-        y: 300 + radius * Math.sin(angle),
-      };
-    });
-
-    // Books arranged around their authors
-    bookNodes.forEach((node) => {
-      const wroteEdge = data.edges.find(
-        (e) => e.target === node.id && e.type === "WROTE"
-      );
-      if (wroteEdge) {
-        const authorNode = nodes.find((n) => n.id === wroteEdge.source);
-        if (authorNode) {
-          node.position = {
-            x: authorNode.position.x + (Math.random() - 0.5) * 100,
-            y: authorNode.position.y + 150 + Math.random() * 50,
-          };
-        }
-      }
-    });
-
-    setNodes([...nodes]);
-  }, [data.nodes, data.edges]);
+  const [nodes, setNodes, onNodesChange] = useNodesState(layoutedNodes);
+  const [edges, setEdges, onEdgesChange] = useEdgesState(layoutedEdges);
 
   const handleNodeClick = useCallback(
     (_event: React.MouseEvent, node: Node) => {
